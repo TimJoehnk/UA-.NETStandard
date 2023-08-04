@@ -2,11 +2,12 @@
 
   <PropertyGroup>
     <AssemblyName>Opc.Ua.PubSub</AssemblyName>
-    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <PackageId>OPCFoundation.NetStandard.Opc.Ua.PubSub</PackageId>
+    <TargetFrameworks>netstandard2.1</TargetFrameworks>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.PubSub.Mqtt4</PackageId>
     <RootNamespace>Opc.Ua.PubSub</RootNamespace>
     <Description>OPC UA PubSub Class Library</Description>
     <IsPackable>true</IsPackable>
+    <PackageOutputPath>build</PackageOutputPath>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageLicenseFile></PackageLicenseFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
@@ -36,7 +37,7 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Include="MQTTnet" Version="3.1.1" />
+    <PackageReference Include="MQTTnet" Version="4.2.1.781" />
     <PackageReference Include="System.Net.NetworkInformation" Version="4.3.0" />
   </ItemGroup>
 

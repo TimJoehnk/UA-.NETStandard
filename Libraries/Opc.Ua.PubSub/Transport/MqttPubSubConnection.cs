@@ -33,7 +33,6 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 using MQTTnet;
 using MQTTnet.Client;
-using MQTTnet.Client.Options;
 using MQTTnet.Formatter;
 using MQTTnet.Protocol;
 using Opc.Ua.PubSub.Encoding;
@@ -158,7 +157,7 @@ namespace Opc.Ua.PubSub.Transport
             // no other encoding is implemented
             return null;
         }
-        
+
         /// <summary> 
         /// Create and return the DataSetMetaData message for a DataSetWriter
         /// </summary>
@@ -208,7 +207,7 @@ namespace Opc.Ua.PubSub.Transport
                                     .Find(x => x.DataSetWriterId == networkMessage.DataSetWriterId);
 
                                 if (dataSetWriter != null)
-                                { 
+                                {
                                     var transportSettings = ExtensionObject
                                         .ToEncodeable(dataSetWriter.TransportSettings)
                                             as BrokerDataSetWriterTransportDataType;
@@ -246,7 +245,7 @@ namespace Opc.Ua.PubSub.Transport
                             {
                                 var message = new MqttApplicationMessage {
                                     Topic = queueName,
-                                    Payload = bytes,
+                                    PayloadSegment = new ArraySegment<byte>(bytes),
                                     QualityOfServiceLevel = GetMqttQualityOfServiceLevel(qos),
                                     Retain = networkMessage.IsMetaDataMessage
                                 };
@@ -291,7 +290,7 @@ namespace Opc.Ua.PubSub.Transport
         protected override async Task InternalStart()
         {
             //cleanup all existing MQTT connections previously open
-            await InternalStop().ConfigureAwait(false); 
+            await InternalStop().ConfigureAwait(false);
 
             lock (m_lock)
             {
@@ -360,7 +359,7 @@ namespace Opc.Ua.PubSub.Transport
 
             MqttClient publisherClient = null;
             MqttClient subscriberClient = null;
-            IMqttClientOptions mqttOptions = GetMqttClientOptions();
+            MqttClientOptions mqttOptions = GetMqttClientOptions();
 
             int nrOfPublishers = Publishers.Count;
             int nrOfSubscribers = GetAllDataSetReaders().Count;
@@ -508,7 +507,7 @@ namespace Opc.Ua.PubSub.Transport
         /// Processes a message from the MQTT broker.
         /// </summary>
         /// <param name="eventArgs"></param>
-        private void ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)
+        private Task ProcessMqttMessage(MqttApplicationMessageReceivedEventArgs eventArgs)
         {
             string topic = eventArgs.ApplicationMessage.Topic;
 
@@ -549,7 +548,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 // raise RawData received event
                 RawDataReceivedEventArgs rawDataReceivedEventArgs = new RawDataReceivedEventArgs() {
-                    Message = eventArgs.ApplicationMessage.Payload,
+                    Message = eventArgs.ApplicationMessage.PayloadSegment.ToArray(),
                     Source = topic,
                     TransportProtocol = this.TransportProtocol,
                     MessageMapping = m_messageMapping,
@@ -563,16 +562,16 @@ namespace Opc.Ua.PubSub.Transport
                 if (rawDataReceivedEventArgs.Handled)
                 {
                     Utils.Trace("MqttConnection message from topic={0} is marked as handled and will not be decoded.", topic);
-                    return;
+                    return Task.CompletedTask;
                 }
 
                 // initialize the expected NetworkMessage
                 UaNetworkMessage networkMessage = m_messageCreator.CreateNewNetworkMessage();
-                
+
                 // trigger message decoding
                 if (networkMessage != null)
                 {
-                    networkMessage.Decode(MessageContext, eventArgs.ApplicationMessage.Payload, dataSetReaders);
+                    networkMessage.Decode(MessageContext, eventArgs.ApplicationMessage.PayloadSegment.ToArray(), dataSetReaders);
 
                     // Handle the decoded message and raise the necessary event on UaPubSubApplication 
                     ProcessDecodedNetworkMessage(networkMessage, topic);
@@ -582,6 +581,7 @@ namespace Opc.Ua.PubSub.Transport
             {
                 Utils.Trace("MqttConnection - ProcessMqttMessage() No DataSetReader is registered for topic={0}.", topic);
             }
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -605,12 +605,12 @@ namespace Opc.Ua.PubSub.Transport
         }
 
         /// <summary>
-        /// Get appropriate IMqttClientOptions with which to connect to the MQTTBroker
+        /// Get appropriate MqttClientOptions with which to connect to the MQTTBroker
         /// </summary>
         /// <returns></returns>
-        private IMqttClientOptions GetMqttClientOptions()
+        private MqttClientOptions GetMqttClientOptions()
         {
-            IMqttClientOptions mqttOptions = null;
+            MqttClientOptions mqttOptions = null;
             TimeSpan mqttKeepAlive = TimeSpan.FromSeconds(GetWriterGroupsMaxKeepAlive() + MaxKeepAliveIncrement);
 
             NetworkAddressUrlDataType networkAddressUrlState =
@@ -761,10 +761,10 @@ namespace Opc.Ua.PubSub.Transport
         /// <summary>
         /// Validates the broker certificate.
         /// </summary>
-        /// <param name="context">The context of the validation</param>
-        private bool ValidateBrokerCertificate(MqttClientCertificateValidationCallbackContext context)
+        /// <param name="args">The context of the validation</param>
+        private bool ValidateBrokerCertificate( MqttClientCertificateValidationEventArgs args)
         {
-            X509Certificate2 brokerCertificate = new X509Certificate2(context.Certificate.GetRawCertData());
+            X509Certificate2 brokerCertificate = new X509Certificate2(args.Certificate.GetRawCertData());
 
             try
             {
@@ -780,7 +780,7 @@ namespace Opc.Ua.PubSub.Transport
             }
             catch (Exception ex)
             {
-                Utils.Trace(ex,"Connection '{0}' - Broker certificate '{1}' rejected.",
+                Utils.Trace(ex, "Connection '{0}' - Broker certificate '{1}' rejected.",
                     PubSubConnectionConfiguration.Name, brokerCertificate.Subject);
                 return false;
             }
@@ -826,7 +826,7 @@ namespace Opc.Ua.PubSub.Transport
                 Utils.Trace(ex, "MqttPubSubConnection.CertificateValidation error.");
             }
         }
-        
+
         #endregion Private methods
 
         #region MessageCreator innner classes
@@ -919,7 +919,7 @@ namespace Opc.Ua.PubSub.Transport
                             {
                                 networkMessages.Add(CreateDataSetMetaDataNetworkMessage(writerGroupConfiguration, dataSetWriter.DataSetWriterId, dataSet.DataSetMetaData));
                             }
-                           
+
                             JsonDataSetWriterMessageDataType jsonDataSetMessageSettings =
                                 ExtensionObject.ToEncodeable(dataSetWriter.MessageSettings) as JsonDataSetWriterMessageDataType;
                             if (jsonDataSetMessageSettings != null)

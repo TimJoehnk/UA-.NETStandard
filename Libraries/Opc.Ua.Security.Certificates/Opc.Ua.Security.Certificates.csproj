@@ -2,11 +2,12 @@
 
   <PropertyGroup>
     <AssemblyName>Opc.Ua.Security.Certificates</AssemblyName>
-    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
-    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Security.Certificates</PackageId>
+    <TargetFrameworks>netstandard2.1</TargetFrameworks>
+    <PackageId>OPCFoundation.NetStandard.Opc.Ua.Security.Certificates.Mqtt4</PackageId>
     <RootNamespace>Opc.Ua.Security.Certificates</RootNamespace>
     <Description>OPC UA Security X509 Certificates Class Library</Description>
     <IsPackable>true</IsPackable>
+    <PackageOutputPath>build</PackageOutputPath>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageLicenseFile></PackageLicenseFile>
     <!-- currently the packages based on bouncy castle exposes additional API
