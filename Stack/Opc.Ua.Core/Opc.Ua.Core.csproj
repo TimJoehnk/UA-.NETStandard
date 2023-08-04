@@ -8,8 +8,8 @@
     <RootNamespace>Opc.Ua</RootNamespace>
     <Description>OPC UA Core Class Library</Description>
     <IsPackable>true</IsPackable>
-    <PackageOutputPath>build</PackageOutputPath>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <CreateNugetPackage>true</CreateNugetPackage>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
